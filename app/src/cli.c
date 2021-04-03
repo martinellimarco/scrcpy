@@ -176,6 +176,11 @@ scrcpy_print_usage(const char *arg0) {
         "        on exit.\n"
         "        It only shows physical touches (not clicks from scrcpy).\n"
         "\n"
+#ifdef V4L2SINK
+        "    --v4l2sink /dev/videoN\n"
+        "        Output to v4l2loopback device. Doesn't support screen rotation.\n"
+        "\n"
+#endif
         "    -v, --version\n"
         "        Print the version of scrcpy.\n"
         "\n"
@@ -622,6 +627,7 @@ parse_record_format(const char *optarg, enum sc_record_format *format) {
         *format = SC_RECORD_FORMAT_MKV;
         return true;
     }
+
     LOGE("Unsupported format: %s (expected mp4 or mkv)", optarg);
     return false;
 }
@@ -668,6 +674,7 @@ guess_record_format(const char *filename) {
 #define OPT_FORWARD_ALL_CLICKS     1023
 #define OPT_LEGACY_PASTE           1024
 #define OPT_ENCODER_NAME           1025
+#define OPT_V4L2SINK               1026
 
 bool
 scrcpy_parse_args(struct scrcpy_cli_args *args, int argc, char *argv[]) {
@@ -709,6 +716,9 @@ scrcpy_parse_args(struct scrcpy_cli_args *args, int argc, char *argv[]) {
         {"show-touches",           no_argument,       NULL, 't'},
         {"stay-awake",             no_argument,       NULL, 'w'},
         {"turn-screen-off",        no_argument,       NULL, 'S'},
+#ifdef V4L2SINK
+        {"v4l2sink",               required_argument, NULL, OPT_V4L2SINK},
+#endif
         {"verbosity",              required_argument, NULL, 'V'},
         {"version",                no_argument,       NULL, 'v'},
         {"window-title",           required_argument, NULL, OPT_WINDOW_TITLE},
@@ -886,14 +896,23 @@ scrcpy_parse_args(struct scrcpy_cli_args *args, int argc, char *argv[]) {
             case OPT_LEGACY_PASTE:
                 opts->legacy_paste = true;
                 break;
+#ifdef V4L2SINK
+            case OPT_V4L2SINK:
+                opts->v4l2sink_device = optarg;
+                break;
+#endif
             default:
                 // getopt prints the error message on stderr
                 return false;
         }
     }
 
-    if (!opts->display && !opts->record_filename) {
+    if (!opts->display && !opts->record_filename && !opts->v4l2sink_device) {
+#ifdef V4L2SINK
+        LOGE("-N/--no-display requires screen recording (-r/--record) or sink to v4l2loopback device (--v4l2sink)");
+#else
         LOGE("-N/--no-display requires screen recording (-r/--record)");
+#endif
         return false;
     }
 

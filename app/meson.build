@@ -20,9 +20,12 @@ src = [
     'src/stream.c',
     'src/tiny_xpm.c',
     'src/video_buffer.c',
+    'src/v4l2sink.c',
     'src/util/net.c',
     'src/util/str_util.c'
 ]
+
+conf = configuration_data()
 
 if not get_option('crossbuild_windows')
 
@@ -33,6 +36,11 @@ if not get_option('crossbuild_windows')
         dependency('libavutil'),
         dependency('sdl2'),
     ]
+
+    if host_machine.system() == 'linux'
+        dependencies += dependency('libavdevice')
+        conf.set('V4L2SINK', '1')
+    endif
 
 else
 
@@ -81,8 +89,6 @@ if host_machine.system() == 'windows'
 else
     src += [ 'src/sys/unix/command.c' ]
 endif
-
-conf = configuration_data()
 
 # expose the build type
 conf.set('NDEBUG', get_option('buildtype') != 'debug')
