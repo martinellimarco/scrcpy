@@ -24,8 +24,8 @@ find_muxer(const char *name) {
 #else
         oformat = av_oformat_next(oformat);
 #endif
-        // until null or with name "mp4"
-    } while (oformat && strcmp(oformat->name, name));
+        // until null or with name "v4l2"
+    } while (oformat && !strstr(oformat->name, name));
     return oformat;
 }
 
@@ -68,20 +68,20 @@ v4l2sink_init(struct v4l2sink *v4l2sink,
               struct size declared_frame_size) {
     v4l2sink->devicename = SDL_strdup(devicename);
     if (!v4l2sink->devicename) {
-        LOGE("Could not strdup devicename");
+        LOGE("Could not strdup devicename for v4l2sink");
         return false;
     }
 
     v4l2sink->mutex = SDL_CreateMutex();
     if (!v4l2sink->mutex) {
-        LOGC("Could not create mutex");
+        LOGC("Could not create mutex for v4l2sink");
         SDL_free(v4l2sink->devicename);
         return false;
     }
 
     v4l2sink->queue_cond = SDL_CreateCond();
     if (!v4l2sink->queue_cond) {
-        LOGC("Could not create cond");
+        LOGC("Could not create cond for v4l2sink");
         SDL_DestroyMutex(v4l2sink->mutex);
         SDL_free(v4l2sink->devicename);
         return false;
@@ -102,11 +102,6 @@ v4l2sink_destroy(struct v4l2sink *v4l2sink) {
     SDL_DestroyCond(v4l2sink->queue_cond);
     SDL_DestroyMutex(v4l2sink->mutex);
     SDL_free(v4l2sink->devicename);
-}
-
-static const char *
-v4l2sink_get_format_name() {
-    return "video4linux2,v4l2";//FIXME
 }
 
 bool
@@ -146,16 +141,14 @@ v4l2sink_open(struct v4l2sink *v4l2sink, const AVCodec *codec) {
         return false;
     }
 
-    const char *format_name = v4l2sink_get_format_name();
-    assert(format_name);
-    const AVOutputFormat *format = find_muxer(format_name);
+    const AVOutputFormat *format = find_muxer("v4l2");
     if (!format) {
-        LOGE("Could not find muxer");
+        LOGE("Could not find muxer for v4l2sink");
         return false;
     }
     v4l2sink->ctx = avformat_alloc_context();
     if (!v4l2sink->ctx) {
-        LOGE("Could not allocate output context");
+        LOGE("Could not allocate output context for v4l2sink");
         return false;
     }
 
@@ -200,7 +193,7 @@ v4l2sink_open(struct v4l2sink *v4l2sink, const AVCodec *codec) {
     v4l2sink->decoded_frame = av_frame_alloc();
     v4l2sink->raw_packet = av_packet_alloc();
 
-    LOGI("V4l2sink started to %s device: %s", format_name, v4l2sink->devicename);
+    LOGI("V4l2sink started to device: %s", v4l2sink->devicename);
 
     return true;
 }
@@ -229,8 +222,7 @@ v4l2sink_close(struct v4l2sink *v4l2sink) {
     if (v4l2sink->failed) {
         LOGE("Sink failed to %s", v4l2sink->devicename);
     } else {
-        const char *format_name = v4l2sink_get_format_name();
-        LOGI("Sink complete to %s device: %s", format_name, v4l2sink->devicename);//FIXME qui devicename è corrotto.. why???
+        LOGI("Sink completed device: %s", v4l2sink->devicename);
     }
 
     if (v4l2sink->decoded_frame) {
